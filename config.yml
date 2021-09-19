@@ -1,14 +1,16 @@
 
 ROOT_PYTHON_SCRIPT:
 TAG_PREFIX: TG
+ARTEFACTS_PREFIX: ART
 COMMIT_MESSAGE_PASS: "Build successful"
 COMMIT_MESSAGE_FAILL: "Build failed"
 VERSION_REPO_NAME: test_version
 VERSION_REPO_BRANCH: main
 PATH_BUILD_SCRIPT: "/home/haris/Documents/build.sh"
-PATH_BUILD_ARTEFACTS_SOURCE:
-PATH_BUILD_ARTEFACTS_DESTINATION:
+PATH_BUILD_ARTEFACTS_SOURCE: "/home/haris/Documents/artefacts"
+PATH_BUILD_ARTEFACTS_DESTINATION: /home/haris/Documents/network/
 PATH_BUILD_LOG: "/home/haris/Documents/build.log"
+PATH_SCRIPT_LOG: "/home/haris/Documents/script.log"
 PATH_REPO_SAVE_FOLDER: "/home/haris/Documents/repos/"
 SEND_MAIL_DISTRIBUTION_LIST: hrehman200@gmail.com 
 ARTEFACTORY_BASE_URL:
