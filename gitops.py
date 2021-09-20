@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import logging
 import subprocess
 
-log = object
+log = logging.Logger(__name__)
 
 def loadConfig(configPath):
     with open('config.yml') as c:
@@ -17,24 +17,28 @@ def loadConfig(configPath):
         return config
 
 def setLogging(log_file_path):
+    global log
     logging.basicConfig(format='[%(asctime)s]: %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO,
     handlers=[
         logging.FileHandler(log_file_path),
         logging.StreamHandler()
     ])
-    log = logging.getlog(__name__)
+    log = logging.getLogger(__name__)
     log.info('Setting logging')
 
 def repoCloned(path):
+    global log
     cloned = os.path.isdir(path)
-    log.info(f"""Repo {path }exists : {cloned}""")
+    log.info(f"""Repo {path} exists : {cloned}""")
     return cloned
 
 def cloneRepo(url, branch, folder):
+    global log
     log.info(f"""Cloning repo {url} {branch} to dir {folder} """)
     return git.Repo.clone_from(url, folder, branch=branch)
 
 def pullRepo(repo_path):
+    global log
     log.info(f"""Pulling repo {getRepoName(repo_path)} """)
     repo = git.Repo(repo_path)
     o = repo.remotes.origin
@@ -53,6 +57,7 @@ def getRepoName(repo_path):
     return repo.remotes.origin.url.split('.git')[0].split('/')[-1]
 
 def remoteAhead(repo_path, branch):
+    global log
     repo_obj = git.Repo(repo_path)
     commits_diff = repo_obj.git.rev_list('--left-right', '--count', f'{branch}...{branch}@{{u}}')
     num_ahead, num_behind = commits_diff.split('\t')
@@ -61,6 +66,7 @@ def remoteAhead(repo_path, branch):
     return ahead
 
 def getValueFromVersionFile(version_file_path, key):
+    global log
     with open(version_file_path) as f:
         lines = f.readlines()
         for line in lines:
@@ -69,6 +75,7 @@ def getValueFromVersionFile(version_file_path, key):
                 return l[0]
 
 def updateValueInVerionFile(version_file_path, key, oldValue, newValue):
+    global log
     with open(version_file_path) as f:
         lines = f.readlines()
         for index, line in enumerate(lines):
@@ -80,6 +87,7 @@ def updateValueInVerionFile(version_file_path, key, oldValue, newValue):
         f.writelines(lines)
 
 def incrementVersion(old_version):
+    global log
     parts = old_version.split('.')
     last_part_index = len(parts)-1
     last_part = int(parts[last_part_index]) + 1
@@ -87,6 +95,7 @@ def incrementVersion(old_version):
     return ".".join(parts)
 
 def commitAndPushRepo(repo_path, message):
+    global log
     repo_obj = git.Repo(repo_path)
     repo_obj.index.commit(message)
     origin = repo_obj.remote(name='origin')
@@ -94,13 +103,18 @@ def commitAndPushRepo(repo_path, message):
     log.info(f"""Pushed {getRepoName(repo_path)}""")
 
 def tagRepo(repo_path, message):
-    repo_obj = git.Repo(repo_path)
-    repo_obj.create_tag(message)
-    origin = repo_obj.remote(name='origin')
-    origin.push(message)
-    log.info(f"""Tagged {getRepoName(repo_path)} with {message}""")
+    global log
+    try:
+        repo_obj = git.Repo(repo_path)
+        repo_obj.create_tag(message)
+        origin = repo_obj.remote(name='origin')
+        origin.push(message)
+        log.info(f"""Tagged {getRepoName(repo_path)} with {message}""")
+    except:
+        log.info(f"""Failed in applying tag {message} to {getRepoName(repo_path)}""")
 
 def renameArtefactsFolder(folder_path, new_name):
+    global log
     parts = folder_path.split('/')
     parts[len(parts) - 1] = new_name
     new_path = "/".join(parts)
@@ -109,6 +123,7 @@ def renameArtefactsFolder(folder_path, new_name):
     return new_path
     
 def zipdir(src, dst):
+    global log
     os.chdir(os.path.dirname(src))
     zf = zipfile.ZipFile("%s.zip" % (dst), "w", zipfile.ZIP_DEFLATED)
     abs_src = os.path.abspath(src)
@@ -122,9 +137,12 @@ def zipdir(src, dst):
     return abs_src+".zip"
 
 def copyFileToPath(src, dst):
+    global log
     copyfile(src, dst)
+    log.info(f"""Copied file {src} to {dst}""")
 
 def sendEmail(to, subject, message):
+    global log
     msg = EmailMessage()
     msg.set_content(message)
     msg['Subject'] = subject
@@ -137,6 +155,7 @@ def sendEmail(to, subject, message):
         log.info(f"""Sent email with subject {subject} to {to}""")
 
 def updateValuesInManifest(xml_file, projects):
+    global log
     tree = ET.parse(xml_file)
     root = tree.getroot()
     
@@ -146,7 +165,7 @@ def updateValuesInManifest(xml_file, projects):
         target_node = root.find(".//*[@name='"+dict['name']+"']")
 
         if('_version' in dict['name']):
-            log.ino('Setting ' + dict['name'] +' revision to : ' + dict['revision'])
+            log.info('Setting ' + dict['name'] +' revision to : ' + dict['revision'])
             target_node.set('revision', dict['revision'])
         else:
             keys = dict.keys()
@@ -163,15 +182,14 @@ def updateValuesInManifest(xml_file, projects):
                         ' to : ' + dict[attr])
                     target_node.set(attr, dict[attr])
 
-                    log.info('Setting ' + dict['name'] +
-                        ' upstream to : ' + dict['revision'])
-                    target_node.set('upstream', dict['revision'])
-
     tree.write(xml_file, encoding="UTF-8", xml_declaration=True)
     
-def runBuildScript(script_path):
+def runBuildScript(script_path, build_log_path):
+    global log
     log.info(f"""Running build script {script_path}""")
-    output = subprocess.Popen(script_path, shell=True, stdout=subprocess.PIPE).stdout.read()
-    log.info(f"""Build script complete: {output}""")
-    return output
+    with open(build_log_path, "w") as outfile:
+        proc = subprocess.run(script_path, stdout=outfile)
+        log.info(f"""Build script complete""")
+        return proc.returncode
+    
 

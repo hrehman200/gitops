@@ -1,12 +1,12 @@
 
-ROOT_PYTHON_SCRIPT:
+ROOT_PYTHON_SCRIPT: "/home/haris/Documents/gitops/script.py"
 TAG_PREFIX: TG
 ARTEFACTS_PREFIX: ART
 COMMIT_MESSAGE_PASS: "Build successful"
 COMMIT_MESSAGE_FAILL: "Build failed"
 VERSION_REPO_NAME: test_version
 VERSION_REPO_BRANCH: main
-PATH_BUILD_SCRIPT: "/home/haris/Documents/build.sh"
+PATH_BUILD_SCRIPT: "/home/haris/Documents/gitops/build.sh"
 PATH_BUILD_ARTEFACTS_SOURCE: "/home/haris/Documents/artefacts"
 PATH_BUILD_ARTEFACTS_DESTINATION: /home/haris/Documents/network/
 PATH_BUILD_LOG: "/home/haris/Documents/build.log"
