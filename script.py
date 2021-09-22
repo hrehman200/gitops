@@ -2,10 +2,11 @@ import os
 from sys import version
 import gitops
 from datetime import datetime
+import emailer
 
 cfg = gitops.loadConfig('./cfg.yml')
 
-gitops.setLogging(cfg['PATH_SCRIPT_LOG'])
+log = gitops.setLogging(cfg['PATH_SCRIPT_LOG'])
 
 version_repo = cfg['VERSION_REPO_BRANCH']
 version_repo_path = cfg['PATH_REPO_SAVE_FOLDER']+cfg['VERSION_REPO_NAME']
@@ -20,8 +21,8 @@ projects_xml = []
 if gitops.repoCloned(version_repo_path) is False:
     gitops.cloneRepo(version_repo_url, cfg['VERSION_REPO_BRANCH'], version_repo_path)
 
-# pull version repo
-if gitops.remoteAhead(version_repo_path, cfg['VERSION_REPO_BRANCH']):
+# pull version repo, if commit hashes differ
+if gitops.getRepoHash(version_repo_path) != gitops.getValueFromManifest(version_xml_path, {'name':cfg['VERSION_REPO_NAME']}, 'revision'):
     gitops.pullRepo(version_repo_path)
 
 projects_xml.append({
@@ -37,7 +38,8 @@ for repo in repositories:
     repo_url = cfg['GIT_REMOTE_BASE_URL'] + repo['name']
     if gitops.repoCloned(repo_path) is False:
         gitops.cloneRepo(repo_url, repo['branch'], repo_path)
-    elif gitops.remoteAhead(repo_path, repo['branch']):
+        build_necessary = True
+    elif gitops.getRepoHash(repo_path) != gitops.getValueFromManifest(version_xml_path, {'name':repo['name']}, 'revision'):
         build_necessary = True
 
 version_num = gitops.getValueFromVersionFile(version_file_path, 'VERSION')
@@ -84,19 +86,10 @@ if(build_necessary):
 
     gitops.copyFileToPath(zipped_file_path, zip_file_on_network)
 
-    # send email message
-    email_message = f"""
-        Build Result {zip_file_on_network}
-        Build Manifest {version_xml_path}
-        Build Log {cfg['PATH_BUILD_LOG']}
-    """
-
     if(build_successful):
-        email_subject = cfg['COMMIT_MESSAGE_PASS'] + ' ' + new_version_num
+        emailer.sendBuildSuccessEmail(cfg, zip_file_on_network, version_xml_path, new_version_num, log)
     else:
-        email_subject = cfg['COMMIT_MESSAGE_FAIL'] + ' ' + new_version_num
-    
-    gitops.sendEmail(cfg['SEND_MAIL_DISTRIBUTION_LIST'], email_subject, email_message)
+        emailer.sendBuildFailEmail(cfg, zip_file_on_network, version_xml_path, new_version_num, log)
 
 else:
-    gitops.sendEmail(cfg['SEND_MAIL_DISTRIBUTION_LIST'], 'Build Results ' + new_version_num, 'No build necessary')
+    emailer.sendNoBuildNeededEmail(cfg, new_version_num, log)

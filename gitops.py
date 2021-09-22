@@ -3,8 +3,6 @@ import git
 import os
 import zipfile
 from shutil import copyfile
-import smtplib
-from email.message import EmailMessage
 import xml.etree.ElementTree as ET
 import logging
 import subprocess
@@ -25,6 +23,7 @@ def setLogging(log_file_path):
     ])
     log = logging.getLogger(__name__)
     log.info('Setting logging')
+    return log
 
 def repoCloned(path):
     global log
@@ -59,6 +58,8 @@ def getRepoName(repo_path):
 def remoteAhead(repo_path, branch):
     global log
     repo_obj = git.Repo(repo_path)
+    for remote in repo_obj.remotes:
+        remote.fetch()
     commits_diff = repo_obj.git.rev_list('--left-right', '--count', f'{branch}...{branch}@{{u}}')
     num_ahead, num_behind = commits_diff.split('\t')
     ahead = int(num_ahead) > 0
@@ -141,19 +142,6 @@ def copyFileToPath(src, dst):
     copyfile(src, dst)
     log.info(f"""Copied file {src} to {dst}""")
 
-def sendEmail(to, subject, message):
-    global log
-    msg = EmailMessage()
-    msg.set_content(message)
-    msg['Subject'] = subject
-    msg['From'] = 'sender@gmail.com'
-    msg['To'] = to
-
-    with smtplib.SMTP("mail.siemens.de") as server:
-        #server.login(user, password)
-        server.send_message(msg)
-        log.info(f"""Sent email with subject {subject} to {to}""")
-
 def updateValuesInManifest(xml_file, projects):
     global log
     tree = ET.parse(xml_file)
@@ -183,6 +171,20 @@ def updateValuesInManifest(xml_file, projects):
                     target_node.set(attr, dict[attr])
 
     tree.write(xml_file, encoding="UTF-8", xml_declaration=True)
+
+def getValueFromManifest(xml_file, dict_predicate, attr_to_fetch):
+    global log
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    predicate = ''
+    keys = dict_predicate.keys()
+    for attr in keys:
+        predicate += "[@name='"+dict_predicate[attr]+"']"
+    target_node = root.find(".//*"+predicate)
+    if target_node is not None:
+        return target_node.get(attr_to_fetch)
+    return ''
+
     
 def runBuildScript(script_path, build_log_path):
     global log
