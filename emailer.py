@@ -17,7 +17,7 @@ def sendBuildSuccessEmail(cfg, zip_file_on_network, version_xml_path, new_versio
     msg = EmailMessage()
     msg.set_content(email_message)
     msg['Subject'] = subject
-    msg['From'] = 'sender@gmail.com'
+    msg['From'] = cfg['SEND_MAIL_SENDER']
     msg['To'] = to
 
     with smtplib.SMTP("mail.siemens.de") as server:
@@ -41,7 +41,7 @@ def sendBuildFailEmail(cfg, zip_file_on_network, version_xml_path, new_version_n
     msg = EmailMessage()
     msg.set_content(email_message)
     msg['Subject'] = subject
-    msg['From'] = 'sender@gmail.com'
+    msg['From'] = cfg['SEND_MAIL_SENDER']
     msg['To'] = to
 
     with smtplib.SMTP("mail.siemens.de") as server:
@@ -49,7 +49,7 @@ def sendBuildFailEmail(cfg, zip_file_on_network, version_xml_path, new_version_n
         log_obj.info(f"""Sent email with subject {subject} to {to}""")
 
 
-def sendNoBuildNeededEmail(cfg, new_version_num, log_obj):
+def sendNoBuildNeededEmail(cfg, log_obj):
     global log
 
     # send email message
@@ -57,13 +57,13 @@ def sendNoBuildNeededEmail(cfg, new_version_num, log_obj):
         No build necessary
     """
 
-    subject = 'Build result: ' + new_version_num
+    subject = 'Build result'
     to = cfg['SEND_MAIL_DISTRIBUTION_LIST']
 
     msg = EmailMessage()
     msg.set_content(email_message)
     msg['Subject'] = subject
-    msg['From'] = 'sender@gmail.com'
+    msg['From'] = cfg['SEND_MAIL_SENDER']
     msg['To'] = to
 
     with smtplib.SMTP("mail.siemens.de") as server:

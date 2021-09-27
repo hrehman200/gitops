@@ -45,9 +45,15 @@ for repo in repositories:
 version_num = gitops.getValueFromVersionFile(version_file_path, 'VERSION')
 version_date = gitops.getValueFromVersionFile(version_file_path, 'DATE')
 
-new_version_num = gitops.incrementVersion(version_num)
-
 if(build_necessary):
+
+    new_version_num = gitops.incrementVersion(version_num)
+    log.info(f"""Building Version:: {new_version_num} :: from branch {version_repo}""")
+
+    # log version to build log 
+    f = open(cfg['PATH_BUILD_LOG'], "a")
+    f.write(f"""Building Version:: {new_version_num} :: from branch {version_repo}""")
+    f.close()
 
     for repo in repositories:
         repo_path = cfg['PATH_REPO_SAVE_FOLDER'] + repo['name']
@@ -56,10 +62,10 @@ if(build_necessary):
         projects_xml.append({
             'name':repo['name'], 
             'revision':gitops.getRepoHash(repo_path),
-            'upstream':gitops.getRepoHash(repo_path), #repo['branch']
+            'upstream':repo['branch']
         })
 
-    return_code = gitops.runBuildScript(cfg['PATH_BUILD_SCRIPT'], cfg['PATH_BUILD_LOG'])
+    return_code = gitops.runBuildScript(cfg['PATH_BUILD_SCRIPT'], cfg['ARGUMENTS_BUILD_SCRIPT'], cfg['PATH_BUILD_LOG'])
     build_successful = return_code == 0
     
     gitops.updateValuesInManifest(version_xml_path, projects_xml)
@@ -73,7 +79,13 @@ if(build_necessary):
     # update version and date and push to version repo
     gitops.updateValueInVerionFile(version_file_path, 'VERSION', version_num, new_version_num)
     gitops.updateValueInVerionFile(version_file_path, 'DATE', version_date, datetime.now().strftime("%Y-%m-%d_%H:%M:%S"))
-    gitops.commitAndPushRepo(version_repo_path, cfg['COMMIT_MESSAGE_PASS'])
+    gitops.commitAndPushRepo(version_repo_path, cfg['COMMIT_MESSAGE_PASS'] if build_successful else cfg['COMMIT_MESSAGE_FAIL'])
+
+    # copy log files to artefacts folder
+    script_log_filename = os.path.basename(cfg['PATH_SCRIPT_LOG'])
+    build_log_filename = os.path.basename(cfg['PATH_BUILD_LOG'])
+    gitops.copyfile(cfg['PATH_SCRIPT_LOG'], f"""{cfg['PATH_BUILD_ARTEFACTS_SOURCE']}/{script_log_filename}_{new_version_num}_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}""")
+    gitops.copyfile(cfg['PATH_SCRIPT_LOG'], f"""{cfg['PATH_BUILD_ARTEFACTS_SOURCE']}/{build_log_filename}_{new_version_num}_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}""")
 
     # rename, zip and move artefacts folder to network path
     artefact_build_dir = cfg['PATH_BUILD_ARTEFACTS_SOURCE']
@@ -91,5 +103,11 @@ if(build_necessary):
     else:
         emailer.sendBuildFailEmail(cfg, zip_file_on_network, version_xml_path, new_version_num, log)
 
+    # rename build files
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    os.rename(cfg['PATH_BUILD_LOG'], f"""{cfg['PATH_BUILD_LOG']}_{new_version_num}_{timestamp}""")
+    os.rename(cfg['PATH_SCRIPT_LOG'], f"""{cfg['PATH_SCRIPT_LOG']}_{new_version_num}_{timestamp}""")
+
 else:
-    emailer.sendNoBuildNeededEmail(cfg, new_version_num, log)
+    log.info(f"""No build necessary""")
+    emailer.sendNoBuildNeededEmail(cfg, log)

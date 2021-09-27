@@ -22,49 +22,73 @@ def setLogging(log_file_path):
         logging.StreamHandler()
     ])
     log = logging.getLogger(__name__)
+    log.info('################################################################')
     log.info('Setting logging')
+    log.info('################################################################')
     return log
 
 def repoCloned(path):
     global log
-    cloned = os.path.isdir(path)
-    log.info(f"""Repo {path} exists : {cloned}""")
-    return cloned
+    try:
+        cloned = os.path.isdir(path)
+        log.info(f"""Repo {path} exists : {cloned}""")
+        return cloned
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def cloneRepo(url, branch, folder):
     global log
-    log.info(f"""Cloning repo {url} {branch} to dir {folder} """)
-    return git.Repo.clone_from(url, folder, branch=branch)
+    try:
+        log.info(f"""Cloning repo {url} {branch} to dir {folder} """)
+        return git.Repo.clone_from(url, folder, branch=branch)
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
+
 
 def pullRepo(repo_path):
     global log
-    log.info(f"""Pulling repo {getRepoName(repo_path)} """)
-    repo = git.Repo(repo_path)
-    o = repo.remotes.origin
-    o.pull()
+    try:
+        log.info(f"""Pulling repo {getRepoName(repo_path)} """)
+        repo = git.Repo(repo_path)
+        o = repo.remotes.origin
+        o.pull()
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def getRepoHash(repo_path):
-    repo = git.Repo(repo_path)
-    sha = repo.head.object.hexsha
-    return sha
+    try:
+        repo = git.Repo(repo_path)
+        sha = repo.head.object.hexsha
+        return sha
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def getRepoObj(folder):
-    return git.Repo(folder)
+    try:
+        return git.Repo(folder)
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def getRepoName(repo_path):
-    repo = git.Repo(repo_path)
-    return repo.remotes.origin.url.split('.git')[0].split('/')[-1]
+    try:
+        repo = git.Repo(repo_path)
+        return repo.remotes.origin.url.split('.git')[0].split('/')[-1]
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def remoteAhead(repo_path, branch):
     global log
-    repo_obj = git.Repo(repo_path)
-    for remote in repo_obj.remotes:
-        remote.fetch()
-    commits_diff = repo_obj.git.rev_list('--left-right', '--count', f'{branch}...{branch}@{{u}}')
-    num_ahead, num_behind = commits_diff.split('\t')
-    ahead = int(num_ahead) > 0
-    log.info(f"""Repo {getRepoName(repo_path)} is ahead? : {ahead}""")
-    return ahead
+    try:
+        repo_obj = git.Repo(repo_path)
+        for remote in repo_obj.remotes:
+            remote.fetch()
+        commits_diff = repo_obj.git.rev_list('--left-right', '--count', f'{branch}...{branch}@{{u}}')
+        num_ahead, num_behind = commits_diff.split('\t')
+        ahead = int(num_ahead) > 0
+        log.info(f"""Repo {getRepoName(repo_path)} is ahead? : {ahead}""")
+        return ahead
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def getValueFromVersionFile(version_file_path, key):
     global log
@@ -87,21 +111,37 @@ def updateValueInVerionFile(version_file_path, key, oldValue, newValue):
     with open(version_file_path, 'w') as f:
         f.writelines(lines)
 
+# T02.01.00.00_04.99.51 
 def incrementVersion(old_version):
     global log
-    parts = old_version.split('.')
-    last_part_index = len(parts)-1
-    last_part = int(parts[last_part_index]) + 1
-    parts[last_part_index] = str(last_part)
-    return ".".join(parts)
+    halves = old_version.split('_')
+    parts = halves[1].split('.')
+    increment_major_verison = None
+    for i in range(len(parts),0,-1):
+        if(increment_major_verison is None or increment_major_verison is True):
+            step = int(parts[i-1]) + 1
+        
+        if(step > 99):
+            parts[i-1] = '00'
+            increment_major_verison = True
+        else:
+            parts[i-1] = f'{step:02}'
+            increment_major_verison = False
+            break
+    return halves[0] + '_' + ".".join(parts)
 
 def commitAndPushRepo(repo_path, message):
     global log
-    repo_obj = git.Repo(repo_path)
-    repo_obj.index.commit(message)
-    origin = repo_obj.remote(name='origin')
-    origin.push()
-    log.info(f"""Pushed {getRepoName(repo_path)}""")
+    try:
+        repo_obj = git.Repo(repo_path)
+        repo_obj.git.status()
+        repo_obj.git.add(all=True)
+        repo_obj.index.commit(message)
+        origin = repo_obj.remote(name='origin')
+        origin.push()
+        log.info(f"""Pushed {getRepoName(repo_path)}""")
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def tagRepo(repo_path, message):
     global log
@@ -111,8 +151,8 @@ def tagRepo(repo_path, message):
         origin = repo_obj.remote(name='origin')
         origin.push(message)
         log.info(f"""Tagged {getRepoName(repo_path)} with {message}""")
-    except:
-        log.info(f"""Failed in applying tag {message} to {getRepoName(repo_path)}""")
+    except git.exc.GitError as e:
+        log.info(f"""ERROR: {str(e)}""")
 
 def renameArtefactsFolder(folder_path, new_name):
     global log
@@ -186,11 +226,11 @@ def getValueFromManifest(xml_file, dict_predicate, attr_to_fetch):
     return ''
 
     
-def runBuildScript(script_path, build_log_path):
+def runBuildScript(script_path, script_args, build_log_path):
     global log
     log.info(f"""Running build script {script_path}""")
     with open(build_log_path, "w") as outfile:
-        proc = subprocess.run(script_path, stdout=outfile)
+        proc = subprocess.run([script_path, script_args], stdout=outfile)
         log.info(f"""Build script complete""")
         return proc.returncode
     

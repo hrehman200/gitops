@@ -6,13 +6,15 @@ COMMIT_MESSAGE_PASS: "Build successful"
 COMMIT_MESSAGE_FAILL: "Build failed"
 VERSION_REPO_NAME: test_version
 VERSION_REPO_BRANCH: main
-PATH_BUILD_SCRIPT: "/home/haris/Documents/gitops/build.sh"
+PATH_BUILD_SCRIPT: "/home/haris/Documents/gitops/mybuild.sh"
 PATH_BUILD_ARTEFACTS_SOURCE: "/home/haris/Documents/artefacts"
 PATH_BUILD_ARTEFACTS_DESTINATION: /home/haris/Documents/network/
 PATH_BUILD_LOG: "/home/haris/Documents/build.log"
 PATH_SCRIPT_LOG: "/home/haris/Documents/script.log"
 PATH_REPO_SAVE_FOLDER: "/home/haris/Documents/repos/"
-SEND_MAIL_DISTRIBUTION_LIST: hrehman200@gmail.com 
+SEND_MAIL_DISTRIBUTION_LIST: hrehman200@gmail.com
+SEND_MAIL_SENDER: hrehman200@gmail.com
+ARGUMENTS_BUILD_SCRIPT: "valA valB"
 ARTEFACTORY_BASE_URL:
 ARTEFACTORY_ARTEFACT_NAME:    
 GIT_REMOTE_BASE_URL: "https://github.com/hrehman200/"
